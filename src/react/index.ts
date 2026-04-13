@@ -7,7 +7,7 @@
  */
 
 // ─── Provider ──────────────────────────────────────────────────────────
-export { ReceiptKitProvider } from "./provider";
+export { ReceiptKitProvider, useReceiptKitContext } from "./provider";
 
 // ─── Hooks ─────────────────────────────────────────────────────────────
 export { useReceiptKit } from "./use-receiptkit";
