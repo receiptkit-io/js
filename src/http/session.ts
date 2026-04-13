@@ -18,8 +18,8 @@ import type {
 const DEFAULT_BASE_URL = "https://www.receiptkit.io";
 
 export class ReceiptKitSession {
-  private readonly config: Required<Pick<SessionConfig, "apiKey" | "orgId" | "transport">> &
-    Omit<SessionConfig, "apiKey" | "orgId" | "transport">;
+  private readonly config: Required<Pick<SessionConfig, "apiKey" | "transport">> &
+    Omit<SessionConfig, "apiKey" | "transport">;
 
   constructor(config: SessionConfig) {
     if (config.transport === "mqtt") {
@@ -72,13 +72,17 @@ export class ReceiptKitSession {
     if (dotWidth !== undefined) body.dotWidth = dotWidth;
     if (bridgeId) body.bridgeId = bridgeId;
 
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${this.config.apiKey}`,
+    };
+    if (this.config.orgId) {
+      headers["x-org-id"] = this.config.orgId;
+    }
+
     const response = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.config.apiKey}`,
-        "x-org-id": this.config.orgId,
-      },
+      headers,
       body: JSON.stringify(body),
     });
 

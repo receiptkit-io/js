@@ -23,8 +23,8 @@ import type {
 const DEFAULT_BASE_URL = "https://www.receiptkit.io";
 
 export class ReceiptKitSession {
-  private readonly config: Required<Pick<SessionConfig, "apiKey" | "orgId" | "transport">> &
-    Omit<SessionConfig, "apiKey" | "orgId" | "transport">;
+  private readonly config: Required<Pick<SessionConfig, "apiKey" | "transport">> &
+    Omit<SessionConfig, "apiKey" | "transport">;
   private client: ReceiptKitClient | null = null;
 
   constructor(config: SessionConfig) {
@@ -33,11 +33,17 @@ export class ReceiptKitSession {
       transport: config.transport ?? "mqtt",
     };
 
+    if (this.config.transport === "mqtt" && !config.orgId) {
+      throw new Error(
+        "[ReceiptKitSession] orgId is required for MQTT transport."
+      );
+    }
+
     if (this.config.transport === "mqtt") {
       // Initialize the MQTT client singleton eagerly so connect() can be called.
       const clientConfig: ReceiptKitConfig = {
         apiKey: config.apiKey,
-        orgId: config.orgId,
+        orgId: config.orgId!,
       };
       this.client = ReceiptKitClient.getOrInit(clientConfig);
     }
@@ -52,7 +58,7 @@ export class ReceiptKitSession {
       if (!this.client) {
         const clientConfig: ReceiptKitConfig = {
           apiKey: this.config.apiKey,
-          orgId: this.config.orgId,
+          orgId: this.config.orgId!,
         };
         this.client = ReceiptKitClient.getOrInit(clientConfig);
       }
@@ -180,13 +186,17 @@ export class ReceiptKitSession {
     const bridgeId = options.bridgeId ?? this.config.bridgeId;
     if (bridgeId) body.bridgeId = bridgeId;
 
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${this.config.apiKey}`,
+    };
+    if (this.config.orgId) {
+      headers["x-org-id"] = this.config.orgId;
+    }
+
     const response = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.config.apiKey}`,
-        "x-org-id": this.config.orgId,
-      },
+      headers,
       body: JSON.stringify(body),
     });
 

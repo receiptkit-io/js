@@ -491,8 +491,11 @@ export type Transport = "mqtt" | "http";
 export interface SessionConfig {
   /** API key (`rk_pub_...` or `rk_live_...`). */
   apiKey: string;
-  /** Organization ID. */
-  orgId: string;
+  /**
+   * Organization UUID. Required for MQTT transport (used to build topic strings).
+   * Optional for HTTP transport — the server derives the org from the API key.
+   */
+  orgId?: string;
   /**
    * Transport to use for all print calls in this session.
    *
