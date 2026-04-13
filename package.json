@@ -1,6 +1,6 @@
 {
   "name": "receiptkit",
-  "version": "0.1.0-beta.2",
+  "version": "0.1.0-beta.3",
   "description": "JavaScript SDK for ReceiptKit — print receipts from any web or Node.js application via HTTP or MQTT",
   "license": "MIT",
   "author": "ReceiptKit",
