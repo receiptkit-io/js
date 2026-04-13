@@ -7,7 +7,7 @@
   "homepage": "https://www.receiptkit.io",
   "repository": {
     "type": "git",
-    "url": "https://github.com/receiptkit-io/js.git"
+    "url": "git+https://github.com/receiptkit-io/js.git"
   },
   "keywords": [
     "receiptkit",
