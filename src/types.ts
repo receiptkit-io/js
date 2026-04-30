@@ -117,7 +117,7 @@ export interface LivePrinterStatus {
 
 /** A printer reported in a live bridge status response. */
 export interface LivePrinter {
-  /** Canonical printer endpoint, e.g. tcp:001162341612 or usb:2651024031300090. */
+  /** Canonical printer endpoint, e.g. tcp:001162325a2a or usb:2651024031300090. */
   printerEndpoint: string;
   /** Endpoint transport. */
   connectionType?: "tcp" | "usb";
@@ -365,7 +365,7 @@ export function bridgeConnectionMeta(level: BridgeConnectionLevel) {
 
 /** Options for the `print()` method. */
 export interface PrintOptions {
-  /** Canonical printer endpoint, e.g. tcp:001162341612 or usb:2651024031300090. */
+  /** Printer endpoint. TCP MAC separators are accepted, e.g. tcp:00:11:62:32:5a:2a. */
   printerEndpoint: string;
   /**
    * Bridge ID that owns this printer.
@@ -420,7 +420,7 @@ export interface PrintJobMessage {
   /** Expected template version — bridge re-fetches if cached version differs. */
   templateVersion?: number;
   data: Record<string, unknown>;
-  /** Canonical printer endpoint, e.g. tcp:001162341612 or usb:2651024031300090. */
+  /** Canonical printer endpoint, e.g. tcp:001162325a2a or usb:2651024031300090. */
   printerEndpoint: string;
   /** Raster width override. Omit to let the bridge use the printer's native width. */
   dotWidth?: number;
@@ -519,7 +519,7 @@ export interface SessionConfig {
   baseUrl?: string;
   /** Default template ID. Overridden per-call via PrintCallOptions.templateId. */
   templateId?: string;
-  /** Default canonical printer endpoint. Overridden per-call. */
+  /** Default printer endpoint. TCP MAC separators are accepted and normalized. Overridden per-call. */
   printerEndpoint?: string;
   /** Default bridge ID. Overridden per-call. Auto-resolved from status cache or DB if omitted. */
   bridgeId?: string;
@@ -541,7 +541,7 @@ export interface PrintCallOptions {
   drawer: "START" | "END" | "BOTH" | "NONE";
   /** Override template ID for this call. */
   templateId?: string;
-  /** Override canonical printer endpoint for this call. */
+  /** Override printer endpoint for this call. TCP MAC separators are accepted and normalized. */
   printerEndpoint?: string;
   /** Override bridge ID for this call. */
   bridgeId?: string;
@@ -591,7 +591,7 @@ export function isMacAddress(value: string): boolean {
   return /^[0-9a-f]{12}$/i.test(value.replace(/[:-]/g, ""));
 }
 
-/** Normalize a canonical printer endpoint key. */
+/** Normalize a printer endpoint key. TCP endpoints may use compact, colon, or hyphen MAC format. */
 export function normalizePrinterEndpoint(value: string): string {
   const trimmed = value.trim();
   const lower = trimmed.toLowerCase();
