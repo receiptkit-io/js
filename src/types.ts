@@ -117,6 +117,11 @@ export interface LivePrinterStatus {
 
 /** A printer reported in a live bridge status response. */
 export interface LivePrinter {
+  /** Canonical printer endpoint, e.g. tcp:001162341612 or usb:2651024031300090. */
+  printerEndpoint?: string;
+  /** Endpoint transport. */
+  connectionType?: "tcp" | "usb";
+  /** Legacy TCP MAC identity. For USB endpoints this may be the endpoint value during transition. */
   mac: string;
   name: string;
   ip: string;
@@ -360,8 +365,10 @@ export function bridgeConnectionMeta(level: BridgeConnectionLevel) {
 
 /** Options for the `print()` method. */
 export interface PrintOptions {
-  /** Printer MAC address. */
-  printerId: string;
+  /** Canonical printer endpoint, e.g. tcp:001162341612 or usb:2651024031300090. */
+  printerEndpoint?: string;
+  /** Legacy printer identifier. TCP MAC values remain supported and map to tcp:<mac>. */
+  printerId?: string;
   /**
    * Bridge ID that owns this printer.
    * Required — the print job is published to the bridge's `to-bridge/{bridgeId}/print` topic.
@@ -416,6 +423,9 @@ export interface PrintJobMessage {
   /** Expected template version — bridge re-fetches if cached version differs. */
   templateVersion?: number;
   data: Record<string, unknown>;
+  /** Canonical printer endpoint, e.g. tcp:001162341612 or usb:2651024031300090. */
+  printerEndpoint?: string;
+  /** Legacy printer identifier. For TCP this remains a formatted MAC. */
   printerId: string;
   /** Raster width override. Omit to let the bridge use the printer's native width. */
   dotWidth?: number;
@@ -436,7 +446,9 @@ export interface PrintJobResult {
   jobToken: string;
   /** Whether the print was successful, queued for retry, or failed. */
   status: PrintJobStatus;
-  /** The printer that handled the job. */
+  /** Canonical printer endpoint that handled the job. */
+  printerEndpoint?: string;
+  /** Legacy TCP MAC result. For USB endpoints this may be empty. */
   printerMac: string;
   /** The bridge that processed the job. */
   bridgeId: string;
@@ -472,7 +484,7 @@ export interface ReceiptKitEvents {
   reconnect: () => void;
   error: (error: Error) => void;
   bridgeStatus: (bridgeId: string, status: CachedBridgeStatus) => void;
-  printerStatus: (mac: string, status: LivePrinterStatus, bridgeId: string) => void;
+  printerStatus: (printerEndpoint: string, status: LivePrinterStatus, bridgeId: string) => void;
   printJobResult: (result: PrintJobResult) => void;
   message: (topic: string, payload: Record<string, unknown>) => void;
 }
@@ -512,7 +524,9 @@ export interface SessionConfig {
   baseUrl?: string;
   /** Default template ID. Overridden per-call via PrintCallOptions.templateId. */
   templateId?: string;
-  /** Default printer MAC address. Overridden per-call. */
+  /** Default canonical printer endpoint. Overridden per-call. */
+  printerEndpoint?: string;
+  /** Default legacy printer MAC/ID. Overridden per-call. */
   printerId?: string;
   /** Default bridge ID. Overridden per-call. Auto-resolved from status cache or DB if omitted. */
   bridgeId?: string;
@@ -534,7 +548,9 @@ export interface PrintCallOptions {
   drawer: "START" | "END" | "BOTH" | "NONE";
   /** Override template ID for this call. */
   templateId?: string;
-  /** Override printer MAC for this call. */
+  /** Override canonical printer endpoint for this call. */
+  printerEndpoint?: string;
+  /** Override legacy printer MAC/ID for this call. */
   printerId?: string;
   /** Override bridge ID for this call. */
   bridgeId?: string;
@@ -577,6 +593,50 @@ export function formatRelativeTime(dateStr: string | null): string {
 /** Normalize MAC: remove colons/hyphens, lowercase. Used for MQTT topics and internal comparison. */
 export function normalizeMac(mac: string): string {
   return mac.replace(/[:-]/g, "").toLowerCase();
+}
+
+/** True when a string looks like a TCP MAC address with optional separators. */
+export function isMacAddress(value: string): boolean {
+  return /^[0-9a-f]{12}$/i.test(value.replace(/[:-]/g, ""));
+}
+
+/** Normalize any supported printer identity to the canonical endpoint key. */
+export function normalizePrinterEndpoint(value: string): string {
+  const trimmed = value.trim();
+  const lower = trimmed.toLowerCase();
+
+  if (lower.startsWith("tcp:")) {
+    return `tcp:${normalizeMac(trimmed.slice(4))}`;
+  }
+
+  if (lower.startsWith("usb:")) {
+    return `usb:${trimmed.slice(4).trim().toLowerCase()}`;
+  }
+
+  if (isMacAddress(trimmed)) {
+    return `tcp:${normalizeMac(trimmed)}`;
+  }
+
+  return lower;
+}
+
+/** Convert a canonical endpoint to the legacy printerId field used by older bridges. */
+export function printerEndpointToLegacyId(endpoint: string): string {
+  const normalized = normalizePrinterEndpoint(endpoint);
+  if (normalized.startsWith("tcp:")) {
+    const value = normalized.slice(4);
+    return isMacAddress(value) ? formatMac(value) : normalized;
+  }
+  return normalized;
+}
+
+/** Return a formatted TCP MAC when the endpoint represents TCP, else null. */
+export function printerEndpointToMac(endpoint: string): string | null {
+  const normalized = normalizePrinterEndpoint(endpoint);
+  if (!normalized.startsWith("tcp:")) return null;
+  const value = normalized.slice(4);
+  if (!isMacAddress(value)) return null;
+  return formatMac(value);
 }
 
 /** Format MAC with colons: "00:11:62:34:16:12". Canonical storage/display format. */

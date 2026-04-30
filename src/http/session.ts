@@ -57,6 +57,7 @@ export class ReceiptKitSession {
     const url = `${baseUrl}/api/bridge/print`;
 
     const templateId = options.templateId ?? this.config.templateId;
+    const printerEndpoint = options.printerEndpoint ?? this.config.printerEndpoint;
     const printerId = options.printerId ?? this.config.printerId;
     const dotWidth = options.dotWidth ?? this.config.dotWidth;
     const bridgeId = options.bridgeId ?? this.config.bridgeId;
@@ -67,6 +68,7 @@ export class ReceiptKitSession {
       waitForResult: true,
     };
 
+    if (printerEndpoint) body.printerEndpoint = printerEndpoint;
     if (printerId) body.printerId = printerId;
     if (templateId) body.templateId = templateId;
     if (dotWidth !== undefined) body.dotWidth = dotWidth;

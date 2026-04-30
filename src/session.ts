@@ -90,13 +90,14 @@ export class ReceiptKitSession {
    */
   async print(options: PrintCallOptions): Promise<SessionPrintResult> {
     const templateId = options.templateId ?? this.config.templateId;
+    const printerEndpoint = options.printerEndpoint ?? this.config.printerEndpoint;
     const printerId = options.printerId ?? this.config.printerId;
     const dotWidth = options.dotWidth ?? this.config.dotWidth;
 
     if (this.config.transport === "mqtt") {
-      return this._printViaMqtt(options, { templateId, printerId, dotWidth });
+      return this._printViaMqtt(options, { templateId, printerEndpoint, printerId, dotWidth });
     } else {
-      return this._printViaHttp(options, { templateId, printerId, dotWidth });
+      return this._printViaHttp(options, { templateId, printerEndpoint, printerId, dotWidth });
     }
   }
 
@@ -104,7 +105,7 @@ export class ReceiptKitSession {
 
   private async _printViaMqtt(
     options: PrintCallOptions,
-    resolved: { templateId?: string; printerId?: string; dotWidth?: number }
+    resolved: { templateId?: string; printerEndpoint?: string; printerId?: string; dotWidth?: number }
   ): Promise<SessionPrintResult> {
     if (!this.client) {
       throw new Error(
@@ -112,18 +113,18 @@ export class ReceiptKitSession {
       );
     }
 
-    const printerId = resolved.printerId;
-    if (!printerId) {
+    const printerIdentity = resolved.printerEndpoint ?? resolved.printerId;
+    if (!printerIdentity) {
       throw new Error(
-        "[ReceiptKitSession] printerId is required for MQTT transport. " +
+        "[ReceiptKitSession] printerEndpoint or printerId is required for MQTT transport. " +
           "Set it in SessionConfig or pass it per-call."
       );
     }
 
-    // Resolve bridgeId: per-call → session default → status cache lookup by MAC
+    // Resolve bridgeId: per-call -> session default -> status cache lookup by endpoint/MAC
     let bridgeId = options.bridgeId ?? this.config.bridgeId;
     if (!bridgeId) {
-      const cached = this.client.getStatusCache().getPrinter(printerId);
+      const cached = this.client.getStatusCache().getPrinter(printerIdentity);
       if (cached) {
         bridgeId = cached.bridgeId;
       }
@@ -137,10 +138,11 @@ export class ReceiptKitSession {
     }
 
     const printOptions: PrintOptions = {
-      printerId,
       bridgeId,
       data: options.data,
       drawer: options.drawer,
+      ...(resolved.printerEndpoint && { printerEndpoint: resolved.printerEndpoint }),
+      ...(resolved.printerId && { printerId: resolved.printerId }),
       ...(resolved.templateId && { templateId: resolved.templateId }),
       ...(resolved.dotWidth !== undefined && { dotWidth: resolved.dotWidth }),
     };
@@ -168,7 +170,7 @@ export class ReceiptKitSession {
 
   private async _printViaHttp(
     options: PrintCallOptions,
-    resolved: { templateId?: string; printerId?: string; dotWidth?: number }
+    resolved: { templateId?: string; printerEndpoint?: string; printerId?: string; dotWidth?: number }
   ): Promise<SessionPrintResult> {
     const baseUrl = this.config.baseUrl ?? DEFAULT_BASE_URL;
     const url = `${baseUrl}/api/bridge/print`;
@@ -179,6 +181,7 @@ export class ReceiptKitSession {
       waitForResult: true,
     };
 
+    if (resolved.printerEndpoint) body.printerEndpoint = resolved.printerEndpoint;
     if (resolved.printerId) body.printerId = resolved.printerId;
     if (resolved.templateId) body.templateId = resolved.templateId;
     if (resolved.dotWidth !== undefined) body.dotWidth = resolved.dotWidth;

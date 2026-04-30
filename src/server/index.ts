@@ -168,6 +168,7 @@ export async function serverPrintAndWait(
     const result = {
       jobToken,
       status,
+      printerEndpoint: (payload.printerEndpoint as string) ?? (payload.printerId as string) ?? (payload.printerMac as string) ?? "",
       printerMac: (payload.printerMac as string) ?? "",
       bridgeId: (payload.bridgeId as string) ?? "",
       error: errorMsg ?? undefined,

@@ -76,13 +76,15 @@ const result = await serverPrintAndWait(
   },
   {
     bridgeId: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-    printerId: "00:11:22:33:44:55",
+    printerEndpoint: "tcp:001122334455",
     templateId: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
     data: { order: { total: "$12.99" } },
     drawer: "NONE",  // "START" to kick open a cash drawer
   }
 );
 ```
+
+`printerEndpoint` is the canonical print target. TCP printers use `tcp:<normalized-mac>` and USB printers use `usb:<stable-serial-or-instance-id>`. Existing TCP calls that pass a MAC through `printerId` remain supported for backward compatibility.
 
 ## API key types
 

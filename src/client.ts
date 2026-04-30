@@ -25,7 +25,7 @@ import type {
   CachedBridgeStatus,
   LivePrinter,
 } from "./types";
-import { topicMatchesFilter, normalizeMac, formatMac } from "./types";
+import { topicMatchesFilter, normalizePrinterEndpoint, printerEndpointToLegacyId, printerEndpointToMac } from "./types";
 import { parseRawAsb } from "./asb-parser";
 
 // ─── Defaults ──────────────────────────────────────────────────────────
@@ -482,7 +482,12 @@ export class ReceiptKitClient {
    * Connects if not already connected, publishes with QoS 1.
    */
   async print(options: PrintOptions): Promise<PrintHandle> {
-    const bareMac = normalizeMac(options.printerId);
+    const printerIdentity = options.printerEndpoint ?? options.printerId;
+    if (!printerIdentity) {
+      throw new Error("[ReceiptKitClient] printerEndpoint or printerId is required.");
+    }
+
+    const printerEndpoint = normalizePrinterEndpoint(printerIdentity);
     const topic = this.topics.print(options.bridgeId);
 
     const jobToken = options.jobToken ?? `receiptkit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -490,7 +495,8 @@ export class ReceiptKitClient {
     const message: PrintJobMessage = {
       title: "print-job",
       jobToken,
-      printerId: formatMac(options.printerId),
+      printerEndpoint,
+      printerId: printerEndpointToLegacyId(printerEndpoint),
       data: options.data,
       dotWidth: options.dotWidth,  // omit → bridge uses printer's native width
       drawer: options.drawer ?? "NONE",
@@ -773,7 +779,7 @@ export class ReceiptKitClient {
       // Emit individual printer status events
       if (response.printers) {
         for (const printer of response.printers) {
-          this.emit("printerStatus", printer.mac, printer.status, response.bridgeId);
+          this.emit("printerStatus", printer.printerEndpoint ?? printer.mac, printer.status, response.bridgeId);
         }
       }
     }
@@ -801,7 +807,8 @@ export class ReceiptKitClient {
     const result: PrintJobResult = {
       jobToken,
       status,
-      printerMac: (payload.printerMac as string) ?? "",
+      printerEndpoint: (payload.printerEndpoint as string) ?? (payload.printerId as string) ?? (payload.printerMac as string) ?? "",
+      printerMac: (payload.printerMac as string) ?? printerEndpointToMac((payload.printerEndpoint as string) ?? "") ?? "",
       bridgeId: (payload.bridgeId as string) ?? "",
       error: errorMsg ?? undefined,
       duration: (payload.duration as number) ?? undefined,

@@ -11,13 +11,14 @@ import type {
   LivePrinter,
   BridgeStatusResponse,
 } from "./types";
+import { normalizePrinterEndpoint } from "./types";
 
 export type StatusChangeHandler = () => void;
 
 /**
  * Global in-memory status cache.
  *
- * Stores bridge and printer status keyed by bridgeId and MAC.
+ * Stores bridge and printer status keyed by bridgeId and printer endpoint.
  * Updated automatically by the ReceiptKitClient when status-response
  * messages arrive. All reads are synchronous.
  */
@@ -38,22 +39,25 @@ export class StatusCache {
     return this.bridges.get(bridgeId) ?? null;
   }
 
-  /** Get cached printer status by MAC (normalized comparison). */
-  getPrinter(mac: string): { status: LivePrinterStatus; bridgeId: string; lastUpdated: number } | null {
-    const normalized = mac.replace(/[:-]/g, "").toLowerCase();
-    // Try exact match first, then normalized
+  /** Get cached printer status by canonical endpoint. */
+  getPrinterEndpoint(printerEndpoint: string): { status: LivePrinterStatus; bridgeId: string; lastUpdated: number } | null {
+    const normalized = normalizePrinterEndpoint(printerEndpoint);
     const direct = this.printers.get(normalized);
     if (direct) return direct;
-    // Fallback: scan keys
     for (const [key, value] of this.printers) {
       if (key === normalized) return value;
     }
     return null;
   }
 
+  /** Get cached printer status by endpoint or legacy TCP MAC. */
+  getPrinter(printerIdentity: string): { status: LivePrinterStatus; bridgeId: string; lastUpdated: number } | null {
+    return this.getPrinterEndpoint(printerIdentity);
+  }
+
   /** Check if a specific printer is online (from cache). */
-  isPrinterOnline(mac: string): boolean {
-    const cached = this.getPrinter(mac);
+  isPrinterOnline(printerIdentity: string): boolean {
+    const cached = this.getPrinter(printerIdentity);
     return cached?.status.online ?? false;
   }
 
@@ -89,12 +93,19 @@ export class StatusCache {
     // Update individual printer entries
     if (response.printers) {
       for (const printer of response.printers) {
-        const normalizedMac = printer.mac.replace(/[:-]/g, "").toLowerCase();
-        this.printers.set(normalizedMac, {
+        const endpoint = normalizePrinterEndpoint(printer.printerEndpoint ?? printer.mac);
+        this.printers.set(endpoint, {
           status: printer.status,
           bridgeId: response.bridgeId,
           lastUpdated: now,
         });
+        if (printer.mac) {
+          this.printers.set(normalizePrinterEndpoint(printer.mac), {
+            status: printer.status,
+            bridgeId: response.bridgeId,
+            lastUpdated: now,
+          });
+        }
       }
     }
 
@@ -120,11 +131,18 @@ export class StatusCache {
         printer.status = { ...printer.status, online: false };
 
         // Update individual printer cache entry
-        const normalizedMac = printer.mac.replace(/[:-]/g, "").toLowerCase();
-        const cached = this.printers.get(normalizedMac);
+        const endpoint = normalizePrinterEndpoint(printer.printerEndpoint ?? printer.mac);
+        const cached = this.printers.get(endpoint);
         if (cached && cached.bridgeId === bridgeId) {
           cached.status = { ...cached.status, online: false };
           cached.lastUpdated = now;
+        }
+        if (printer.mac) {
+          const legacyCached = this.printers.get(normalizePrinterEndpoint(printer.mac));
+          if (legacyCached && legacyCached.bridgeId === bridgeId) {
+            legacyCached.status = { ...legacyCached.status, online: false };
+            legacyCached.lastUpdated = now;
+          }
         }
       }
     } else {
