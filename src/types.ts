@@ -118,11 +118,11 @@ export interface LivePrinterStatus {
 /** A printer reported in a live bridge status response. */
 export interface LivePrinter {
   /** Canonical printer endpoint, e.g. tcp:001162341612 or usb:2651024031300090. */
-  printerEndpoint?: string;
+  printerEndpoint: string;
   /** Endpoint transport. */
   connectionType?: "tcp" | "usb";
-  /** Legacy TCP MAC identity. For USB endpoints this may be the endpoint value during transition. */
-  mac: string;
+  /** TCP MAC address when available. USB printers do not have a MAC identity. */
+  mac?: string;
   name: string;
   ip: string;
   port: number;
@@ -167,7 +167,7 @@ export function derivePrinterStatusLevel(
   return "online";
 }
 
-/** Derive status level from simple legacy status fields. */
+/** Derive status level from compact status fields. */
 export function derivePrinterStatusLevelSimple(status: {
   online: boolean;
   paperEmpty?: boolean;
@@ -366,9 +366,7 @@ export function bridgeConnectionMeta(level: BridgeConnectionLevel) {
 /** Options for the `print()` method. */
 export interface PrintOptions {
   /** Canonical printer endpoint, e.g. tcp:001162341612 or usb:2651024031300090. */
-  printerEndpoint?: string;
-  /** Legacy printer identifier. TCP MAC values remain supported and map to tcp:<mac>. */
-  printerId?: string;
+  printerEndpoint: string;
   /**
    * Bridge ID that owns this printer.
    * Required — the print job is published to the bridge's `to-bridge/{bridgeId}/print` topic.
@@ -408,8 +406,7 @@ export interface PrintOptions {
    *
    * When provided, the bridge compares this against its cached version.
    * If they differ, the bridge re-fetches the template from the cloud API
-   * before rendering. Optional for backward compatibility — when omitted,
-   * the bridge uses whatever version it has cached.
+  * before rendering. When omitted, the bridge uses whatever version it has cached.
    */
   templateVersion?: number;
 }
@@ -424,9 +421,7 @@ export interface PrintJobMessage {
   templateVersion?: number;
   data: Record<string, unknown>;
   /** Canonical printer endpoint, e.g. tcp:001162341612 or usb:2651024031300090. */
-  printerEndpoint?: string;
-  /** Legacy printer identifier. For TCP this remains a formatted MAC. */
-  printerId: string;
+  printerEndpoint: string;
   /** Raster width override. Omit to let the bridge use the printer's native width. */
   dotWidth?: number;
   drawer: string;
@@ -447,9 +442,9 @@ export interface PrintJobResult {
   /** Whether the print was successful, queued for retry, or failed. */
   status: PrintJobStatus;
   /** Canonical printer endpoint that handled the job. */
-  printerEndpoint?: string;
-  /** Legacy TCP MAC result. For USB endpoints this may be empty. */
-  printerMac: string;
+  printerEndpoint: string;
+  /** TCP MAC result when the endpoint is a TCP printer. */
+  printerMac?: string;
   /** The bridge that processed the job. */
   bridgeId: string;
   /** Error message (set when status is "queued" or "failed"). */
@@ -526,8 +521,6 @@ export interface SessionConfig {
   templateId?: string;
   /** Default canonical printer endpoint. Overridden per-call. */
   printerEndpoint?: string;
-  /** Default legacy printer MAC/ID. Overridden per-call. */
-  printerId?: string;
   /** Default bridge ID. Overridden per-call. Auto-resolved from status cache or DB if omitted. */
   bridgeId?: string;
   /** Default raster output width in pixels. Overridden per-call. */
@@ -550,8 +543,6 @@ export interface PrintCallOptions {
   templateId?: string;
   /** Override canonical printer endpoint for this call. */
   printerEndpoint?: string;
-  /** Override legacy printer MAC/ID for this call. */
-  printerId?: string;
   /** Override bridge ID for this call. */
   bridgeId?: string;
   /** Override raster output width for this call. */
@@ -600,7 +591,7 @@ export function isMacAddress(value: string): boolean {
   return /^[0-9a-f]{12}$/i.test(value.replace(/[:-]/g, ""));
 }
 
-/** Normalize any supported printer identity to the canonical endpoint key. */
+/** Normalize a canonical printer endpoint key. */
 export function normalizePrinterEndpoint(value: string): string {
   const trimmed = value.trim();
   const lower = trimmed.toLowerCase();
@@ -613,21 +604,7 @@ export function normalizePrinterEndpoint(value: string): string {
     return `usb:${trimmed.slice(4).trim().toLowerCase()}`;
   }
 
-  if (isMacAddress(trimmed)) {
-    return `tcp:${normalizeMac(trimmed)}`;
-  }
-
-  return lower;
-}
-
-/** Convert a canonical endpoint to the legacy printerId field used by older bridges. */
-export function printerEndpointToLegacyId(endpoint: string): string {
-  const normalized = normalizePrinterEndpoint(endpoint);
-  if (normalized.startsWith("tcp:")) {
-    const value = normalized.slice(4);
-    return isMacAddress(value) ? formatMac(value) : normalized;
-  }
-  return normalized;
+  throw new Error(`Invalid printerEndpoint "${value}". Expected tcp:<mac> or usb:<stable-id>.`);
 }
 
 /** Return a formatted TCP MAC when the endpoint represents TCP, else null. */

@@ -25,7 +25,7 @@ function buildPublicTopics(orgId: string) {
   return {
     // ── to-bridge (client/server → bridge) ────────────────────────────
 
-    /** Send a print job to a bridge (printerMac in payload). */
+    /** Send a print job to a bridge (printerEndpoint in payload). */
     print: (bridgeId: string) =>
       `receiptkit/org/${orgId}/to-bridge/${bridgeId}/print`,
 

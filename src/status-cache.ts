@@ -42,22 +42,17 @@ export class StatusCache {
   /** Get cached printer status by canonical endpoint. */
   getPrinterEndpoint(printerEndpoint: string): { status: LivePrinterStatus; bridgeId: string; lastUpdated: number } | null {
     const normalized = normalizePrinterEndpoint(printerEndpoint);
-    const direct = this.printers.get(normalized);
-    if (direct) return direct;
-    for (const [key, value] of this.printers) {
-      if (key === normalized) return value;
-    }
-    return null;
+    return this.printers.get(normalized) ?? null;
   }
 
-  /** Get cached printer status by endpoint or legacy TCP MAC. */
-  getPrinter(printerIdentity: string): { status: LivePrinterStatus; bridgeId: string; lastUpdated: number } | null {
-    return this.getPrinterEndpoint(printerIdentity);
+  /** Get cached printer status by canonical endpoint. */
+  getPrinter(printerEndpoint: string): { status: LivePrinterStatus; bridgeId: string; lastUpdated: number } | null {
+    return this.getPrinterEndpoint(printerEndpoint);
   }
 
   /** Check if a specific printer is online (from cache). */
-  isPrinterOnline(printerIdentity: string): boolean {
-    const cached = this.getPrinter(printerIdentity);
+  isPrinterOnline(printerEndpoint: string): boolean {
+    const cached = this.getPrinterEndpoint(printerEndpoint);
     return cached?.status.online ?? false;
   }
 
@@ -93,19 +88,12 @@ export class StatusCache {
     // Update individual printer entries
     if (response.printers) {
       for (const printer of response.printers) {
-        const endpoint = normalizePrinterEndpoint(printer.printerEndpoint ?? printer.mac);
+        const endpoint = normalizePrinterEndpoint(printer.printerEndpoint);
         this.printers.set(endpoint, {
           status: printer.status,
           bridgeId: response.bridgeId,
           lastUpdated: now,
         });
-        if (printer.mac) {
-          this.printers.set(normalizePrinterEndpoint(printer.mac), {
-            status: printer.status,
-            bridgeId: response.bridgeId,
-            lastUpdated: now,
-          });
-        }
       }
     }
 
@@ -131,18 +119,11 @@ export class StatusCache {
         printer.status = { ...printer.status, online: false };
 
         // Update individual printer cache entry
-        const endpoint = normalizePrinterEndpoint(printer.printerEndpoint ?? printer.mac);
+        const endpoint = normalizePrinterEndpoint(printer.printerEndpoint);
         const cached = this.printers.get(endpoint);
         if (cached && cached.bridgeId === bridgeId) {
           cached.status = { ...cached.status, online: false };
           cached.lastUpdated = now;
-        }
-        if (printer.mac) {
-          const legacyCached = this.printers.get(normalizePrinterEndpoint(printer.mac));
-          if (legacyCached && legacyCached.bridgeId === bridgeId) {
-            legacyCached.status = { ...legacyCached.status, online: false };
-            legacyCached.lastUpdated = now;
-          }
         }
       }
     } else {

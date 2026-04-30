@@ -72,7 +72,6 @@ export {
   macMatch,
   isMacAddress,
   normalizePrinterEndpoint,
-  printerEndpointToLegacyId,
   printerEndpointToMac,
   topicMatchesFilter,
 } from "./types";

@@ -65,7 +65,7 @@ const noopAsyncMap = () => Promise.resolve(new Map());
  * const { isConnected, print } = useReceiptKit()
  *
  * if (isConnected) {
- *   await print({ printerId: '00:11:62:xx:xx:xx', data: { orderNumber: '1042' } })
+ *   await print({ printerEndpoint: 'tcp:001162xxxxxx', data: { orderNumber: '1042' } })
  * }
  */
 export function useReceiptKit(): UseReceiptKitReturn {

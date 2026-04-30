@@ -19,7 +19,7 @@ const session = new ReceiptKitSession({
   apiKey: "rk_pub_...",   // use rk_pub_ for browser/client-side code
   orgId: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",   // UUID from your dashboard
   templateId: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",  // UUID from your dashboard
-  printerId: "00:11:22:33:44:55",
+  printerEndpoint: "tcp:001122334455",
 });
 
 const result = await session.print({
@@ -39,7 +39,7 @@ const session = new ReceiptKitSession({
   apiKey: "rk_pub_...",   // use rk_pub_ for browser/client-side code
   orgId: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",   // UUID from your dashboard
   templateId: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",  // UUID from your dashboard
-  printerId: "00:11:22:33:44:55",
+  printerEndpoint: "tcp:001122334455",
 });
 
 await session.connect();
@@ -84,7 +84,7 @@ const result = await serverPrintAndWait(
 );
 ```
 
-`printerEndpoint` is the canonical print target. TCP printers use `tcp:<normalized-mac>` and USB printers use `usb:<stable-serial-or-instance-id>`. Existing TCP calls that pass a MAC through `printerId` remain supported for backward compatibility.
+`printerEndpoint` is the print target. TCP printers use `tcp:<normalized-mac>` and USB printers use `usb:<stable-serial-or-instance-id>`.
 
 ## API key types
 

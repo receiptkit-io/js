@@ -97,7 +97,7 @@ export async function serverRequestResponse<T>(
     const unsub = client.subscribe(
       opts.subscribeTopic,
       (topic: string, payload: Record<string, unknown>) => {
-        // Convert payload back to Buffer for backward compatibility
+        // Convert parsed payload to Buffer for callback handlers.
         const buf = Buffer.from(JSON.stringify(payload));
         const result = opts.onMessage(topic, buf);
         if (result !== null) {
@@ -165,11 +165,12 @@ export async function serverPrintAndWait(
     if (success) status = "success";
     else if (typeof errorMsg === "string" && errorMsg.toLowerCase().includes("queued")) status = "queued";
 
+    const printerEndpoint = (payload.printerEndpoint as string) ?? "";
     const result = {
       jobToken,
       status,
-      printerEndpoint: (payload.printerEndpoint as string) ?? (payload.printerId as string) ?? (payload.printerMac as string) ?? "",
-      printerMac: (payload.printerMac as string) ?? "",
+      printerEndpoint,
+      printerMac: (payload.printerMac as string) || undefined,
       bridgeId: (payload.bridgeId as string) ?? "",
       error: errorMsg ?? undefined,
       duration: (payload.duration as number) ?? undefined,

@@ -81,7 +81,7 @@ function getStatusMessage(phase: PrintJobPhase, result: PrintJobResult | null): 
  *
  * const handlePrint = async () => {
  *   const result = await printAndWait({
- *     printerId: '00:11:62:xx:xx:xx',
+ *     printerEndpoint: 'tcp:001162xxxxxx',
  *     templateId: 'tmpl_abc',
  *     data: { orderNumber: '1042' },
  *   });
